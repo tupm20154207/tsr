@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def LN_SS(input_layer, training, n_classes):
+def LN_SS(input_layer, n_classes, rate, phase):
     """Apply Lenet5 Single-scale"""
     conv1 = conv_rel(input_layer, 6, 'conv1')  # 28x28x6
     pool1 = max_pool(conv1, 'pool1')  # 14x14x6
@@ -17,7 +17,7 @@ def LN_SS(input_layer, training, n_classes):
     return logits
 
 
-def LN_MS(input_layer, n_classes):
+def LN_MS(input_layer, n_classes, rate, phase):
     """Apply Lenet5 Multi-scale"""
     conv1 = conv_rel(input_layer, 6, 'conv1')  # 28x28x6
     pool1 = max_pool(conv1, 'pool1')  # 14x14x6
@@ -37,9 +37,51 @@ def LN_MS(input_layer, n_classes):
     return logits
 
 
+def LN_MS_DO(input_layer, n_classes, rate, phase):
+    """Apply dropout to Lenet5 Multi-scale"""
+
+    conv1 = conv_rel(input_layer, 6, 'conv1')  # 28x28x6
+    pool1 = max_pool(conv1, 'pool1')  # 14x14x6
+
+    conv2 = conv_rel(pool1, 16, 'conv2')  # 10x10x16
+    pool2 = max_pool(conv2, 'pool2')  # 5x5x16
+
+    pool1_flat = tf.reshape(pool1, [-1, 14 * 14 * 6])
+    pool2_flat = tf.reshape(pool2, [-1, 5 * 5 * 16])
+
+    do1 = tf.layers.dropout(
+        inputs=tf.concat([pool1_flat, pool2_flat], axis=1),
+        rate=rate,
+        training=phase,
+        name='dropout1'
+    )
+
+    fc1 = fc_rel(do1, 120, 'fc1')
+
+    do2 = tf.layers.dropout(
+        inputs=fc1,
+        rate=rate,
+        training=phase,
+        name='dropout2'
+    )
+
+    fc2 = fc_rel(do2, 84, 'fc2')
+
+    do3 = tf.layers.dropout(
+        inputs=fc2,
+        rate=rate,
+        training=phase,
+        name='dropout3'
+    )
+    logits = tf.layers.dense(do3, n_classes, name='logits')
+
+    return logits
+
+
 def LN_MS_BN(input_layer, phase, n_classes):
     """Apply Lenet5 Multi-scale with a batchnorm layer AFTER activation of
     each convolution layer"""
+
     # phase is a boolean placeholder that need to be fed during train/test time
 
     conv1 = conv_rel(input_layer, 6, 'conv1')
@@ -73,6 +115,7 @@ def LN_MS_BN(input_layer, phase, n_classes):
 def LN_MS_BN2(input_layer, phase, n_classes):
     """Apply Lenet5 Multi-scale with a batchnorm layer BEFORE activation of
     each convolution layer"""
+
     # phase is a boolean placeholder that need to be fed during train/test time
 
     conv1 = tf.layers.conv2d(

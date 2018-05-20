@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 N_CLASSES = 43
 INP_WIDTH = 32
 INP_HEIGHT = 32
-TRAINING_DIR = './GTSRB_Final_Training_Images/GTSRB/Final_Training/Images/'
-TEST_DIR = './GTSRB_Test/Online-Test-sort/'
+TRAINING_DIR = './GTSRB/Final_Training/Images/'
+TEST_DIR = './GTSRB/Online-Test-sort/'
 
 TRAIN_FEATURES = 'metadata/training_features'
 TRAIN_LABELS = 'metadata/training_labels'
@@ -135,7 +135,6 @@ def load_data(flush=False):
 
 def get_tf_dataset(batch_size, flush=False):
     train, val, test = load_data(flush)
-
     train_data = tf.data.Dataset.from_tensor_slices(train)
     train_data = train_data.batch(batch_size)
 
@@ -162,7 +161,7 @@ def read_training_info(path):
         loss = []
         accuracy = []
         time = []
-        for line in f.readlines():
+        for line in f.readlines()[1:]:
             info = line[:-1].split(';')
             epoch.append(int(info[0]))
             loss.append(float(info[1]))
@@ -172,17 +171,30 @@ def read_training_info(path):
 
 
 def plot():
-    epoch, loss, acc, _ = read_training_info('training_info/le_net_ss/info')
-    e1, l1, a1, _ = read_training_info('training_info/le_net_ms/info')
-    plt.plot(epoch, loss, 'b')
-    plt.plot(epoch, acc, 'r')
-    plt.plot(e1, l1, '--b')
-    plt.plot(e1, a1, '--r')
+    e1, l1, a1, _ = read_training_info('log/msdo2')
+    e2, l2, a2, _ = read_training_info('log/msdo3')
+    e3, l3, a3, _ = read_training_info('log/msdo4')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy on validations set')
+    plt.plot(e1, a1, 'b')
+    plt.plot(e2, a2, 'r')
+    plt.plot(e3, a3, 'g')
+    plt.gca().legend((
+        'dropout rate = 0.0625',
+        'dropout rate = 0.1',
+        'dropout rate = 0.125'
+    ))
+
+    # plt.plot(e1, a1, 'b')
+    # plt.plot(e2, a2, 'r')
+    # plt.plot(e3, a3, 'g')
+
     plt.show()
 
 
 if __name__ == '__main__':
     # plot()
-    train, val, test = load_data(False)
+    train, val, test = load_data(True)
     print(np.shape(train[0]), np.shape(val[0]), np.shape(test[0]))
     print(np.shape(train[1]), np.shape(val[1]), np.shape(test[1]))
