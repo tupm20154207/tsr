@@ -7,18 +7,18 @@ import math
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-SESSION_STATE = './sess/ss/model.ckpt'
-TRAINING_INFO = './log/ss'
-GRAPH = './graphs/ss'
+SESSION_STATE = './sess/msdo/model.ckpt'
+GRAPH = './graphs/msdo'
 
 N_CLASSES = 43
 N_TRAINS = 32760
 N_EVALS = 6449
 N_TESTS = 12569
 N_EPOCHS = 240
-STEP = 30
+STEP = 40
 
-LR = (0.01, 0.01, 0.01, 0.01, 0.003, 0.003, 0.003, 0.001)
+# LR = (0.03, 0.03, 0.01, 0.01, 0.003, 0.003, 0.003, 0.001)
+LR = (0.03, 0.03, 0.01, 0.01, 0.01, 0.003)
 BATCH_SIZE = 128
 RATE = 0.1
 
@@ -28,11 +28,9 @@ log_format = '{0};{1:.6f};{2:.6f};{3:.3f}\n'
 
 class LeNet5:
 
-    def __init__(self, restore, savesess):
+    def __init__(self):
         self.n_train_batches = math.ceil(N_TRAINS / BATCH_SIZE)
         self.n_valid_batches = math.ceil(N_EVALS / BATCH_SIZE)
-        self.savesess = savesess
-        self.restore = restore
         self.training = None
         self.lr = None
         self.train_init = None
@@ -77,7 +75,7 @@ class LeNet5:
             self.test_init = iterator.make_initializer(test_data)
 
         # Get logits from input images
-            logits = lenet.LN_SS(img, N_CLASSES, RATE, self.training)
+            logits = lenet.LN_MS_DO(img, N_CLASSES, RATE, self.training)
 
         # Calculate loss
         with tf.name_scope('loss'):
@@ -157,13 +155,13 @@ class LeNet5:
         writer.add_summary(summary, epoch)
         return total_correct_preds / N_EVALS
 
-    def train(self):
+    def train(self, restore=False, savesess=True):
 
         # Create a saver to save and restore sesstion state
         saver = tf.train.Saver()
 
         with tf.Session() as sess:
-            if self.restore:
+            if restore:
                 # Use a recorded session
                 saver.restore(sess, SESSION_STATE)
             else:
@@ -188,9 +186,38 @@ class LeNet5:
                         time.time()-start)
 
                 print(onscreen_format.format(*info))
+            if savesess:
+                saver.save(sess, SESSION_STATE)
+
+    def test(self, state=SESSION_STATE):
+        with tf.Session() as sess:
+            total_correct_preds = 0
+
+            # Load the saved session
+            tf.train.Saver().restore(sess, state)
+
+            # Run the test initializer
+            sess.run(self.test_init)
+
+            try:
+                while True:
+                    accuracy_batch = sess.run(
+                        self.accuracy,
+                        feed_dict={self.training: False}
+                    )
+
+                    total_correct_preds += accuracy_batch
+
+            except tf.errors.OutOfRangeError:
+                pass
+
+        print('Accuracy on test set: {0:.3f}%'.format(
+            total_correct_preds / N_TESTS * 100)
+        )
 
 
 if __name__ == '__main__':
-    ln = LeNet5(False, True)
+    ln = LeNet5()
     ln.build_graph()
-    ln.train()
+    # ln.train(restore=False)
+    ln.test()
